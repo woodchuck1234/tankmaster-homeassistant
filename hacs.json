@@ -4,4 +4,6 @@
   "domains": ["tankmaster"],
   "render_readme": true,
   "zip_release": true
+  "country": "US",
+  "homeassistant": "2023.6.0"
 }
