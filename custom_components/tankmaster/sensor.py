@@ -215,3 +215,15 @@ class TankMasterUptimeSensor(TankMasterBase, SensorEntity):
             return int(val)
         except Exception:
             return None
+
+class TankMasterBase(CoordinatorEntity[TankMasterCoordinator]):
+    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self.entry = entry
+        self.host = coordinator.host
+
+    @property
+    def available(self) -> bool:
+        # allow a couple missed polls before marking entities unavailable
+        failures = getattr(self.coordinator, "_consecutive_failures", 0)
+        return failures < 3
