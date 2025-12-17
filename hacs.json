@@ -1,0 +1,7 @@
+{
+  "name": "TankMaster",
+  "content_in_root": false,
+  "domains": ["tankmaster"],
+  "render_readme": true,
+  "zip_release": true
+}
