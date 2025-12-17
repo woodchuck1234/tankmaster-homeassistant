@@ -49,7 +49,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 info = await validate_input(self.hass, user_input)
-            except Exception:  # pylint: disable=broad-except
+            except ConnectionError:
+                _LOGGER.exception("Cannot connect to TankMaster device")
+                errors["base"] = "cannot_connect"
+            except Exception:
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
