@@ -1,7 +1,7 @@
 {
   "domain": "tankmaster",
   "name": "TankMaster",
-  "version": "0.1.0",
+  "version": "1.0.2",
   "documentation": "https://ugottoad.com/tankmaster",
   "issue_tracker": "https://github.com/woodchuck1234/tankmaster-ha/issues",
   "dependencies": [],
