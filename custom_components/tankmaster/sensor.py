@@ -133,4 +133,78 @@ class TankMasterLevelSensor(TankMasterBase, SensorEntity):
 class TankMasterFirmwareSensor(TankMasterBase, SensorEntity):
     _attr_name = "TankMaster Firmware"
     _attr_icon = "mdi:chip"
-    _attr_entity_category =
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self.host}_firmware"
+
+    @property
+    def native_value(self) -> str | None:
+        return (self.coordinator.data or {}).get("firmwareVersion")
+
+
+class TankMasterDeviceNameSensor(TankMasterBase, SensorEntity):
+    _attr_name = "TankMaster Device Name"
+    _attr_icon = "mdi:tag"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self.host}_device_name"
+
+    @property
+    def native_value(self) -> str | None:
+        return (self.coordinator.data or {}).get("deviceName")
+
+
+class TankMasterWifiSSIDSensor(TankMasterBase, SensorEntity):
+    _attr_name = "TankMaster Wi-Fi SSID"
+    _attr_icon = "mdi:wifi"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self.host}_wifi_ssid"
+
+    @property
+    def native_value(self) -> str | None:
+        return (self.coordinator.data or {}).get("wifiSSID")
+
+
+class TankMasterWifiRSSISensor(TankMasterBase, SensorEntity):
+    _attr_name = "TankMaster Wi-Fi RSSI"
+    _attr_icon = "mdi:wifi-strength-2"
+    _attr_native_unit_of_measurement = "dBm"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self.host}_wifi_rssi"
+
+    @property
+    def native_value(self) -> int | None:
+        v = (self.coordinator.data or {}).get("wifiRSSI")
+        try:
+            return int(v) if v is not None else None
+        except Exception:
+            return None
+
+
+class TankMasterUptimeSensor(TankMasterBase, SensorEntity):
+    _attr_name = "TankMaster Uptime"
+    _attr_icon = "mdi:timer-outline"
+    _attr_native_unit_of_measurement = "s"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self.host}_uptime"
+
+    @property
+    def native_value(self) -> int | None:
+        v = (self.coordinator.data or {}).get("uptimeSeconds")
+        try:
+            return int(v) if v is not None else None
+        except Exception:
+            return None
