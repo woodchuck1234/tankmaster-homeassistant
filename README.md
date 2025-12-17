@@ -31,17 +31,12 @@ This integration connects directly to a TankMaster device over your local networ
 
 Option 1: Install via HACS (Recommended)
 	1.	Install HACS if you haven’t already
-👉 https://hacs.xyz/
+			👉 https://hacs.xyz/
 	2.	In Home Assistant:
-	•	Go to HACS → Integrations
-	•	Click ⋮ → Custom repositories
-	•	Add this repository:
-
-https://github.com/woodchuck1234/tankmaster-homeassistant
-
-
-	•	Category: Integration
-
+		•	Go to HACS → Integrations
+		•	Click ⋮ → Custom repositories
+		•	Add this repository:  https://github.com/woodchuck1234/tankmaster-homeassistant
+		•	Category: Integration
 	3.	Search for TankMaster in HACS and install it
 	4.	Restart Home Assistant
 
@@ -49,10 +44,7 @@ https://github.com/woodchuck1234/tankmaster-homeassistant
 
 Option 2: Manual Installation
 	1.	Copy the custom_components/tankmaster folder into:
-
-/config/custom_components/tankmaster
-
-
+			/config/custom_components/tankmaster
 	2.	Restart Home Assistant
 
 ⸻
