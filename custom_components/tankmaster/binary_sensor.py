@@ -3,9 +3,8 @@ from __future__ import annotations
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, PROBE_THRESHOLDS
+from .const import DOMAIN
 from .coordinator import TankMasterCoordinator
 from .sensor import TankMasterBase
 
@@ -13,7 +12,7 @@ from .sensor import TankMasterBase
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     coordinator: TankMasterCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities = [
+    entities: list[BinarySensorEntity] = [
         TankMasterProbeDetected(coordinator, entry, 0),
         TankMasterProbeDetected(coordinator, entry, 1),
         TankMasterProbeDetected(coordinator, entry, 2),
@@ -38,15 +37,14 @@ class TankMasterProbeDetected(TankMasterBase, BinarySensorEntity):
         if not isinstance(values, list) or len(values) <= self.idx:
             return None
         try:
-            v = int(values[self.idx])
-            # Treat "detected" as meeting or exceeding the probe’s nominal threshold.
-            return v >= PROBE_THRESHOLDS[self.idx]
+            raw = int(values[self.idx])  # 0 or 100
+            return raw >= 50             # wet if 100
         except Exception:
             return None
 
+
 class TankMasterWifiConnected(TankMasterBase, BinarySensorEntity):
     _attr_name = "TankMaster Wi-Fi Connected"
-    _attr_unique_id = None
     _attr_icon = "mdi:wifi"
 
     def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
