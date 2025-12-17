@@ -1,0 +1,11 @@
+{
+  "domain": "tankmaster",
+  "name": "TankMaster",
+  "version": "0.1.0",
+  "documentation": "https://ugottoad.com/",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": [],
+  "config_flow": true,
+  "iot_class": "local_polling"
+}
