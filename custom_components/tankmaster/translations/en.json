@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "TankMaster",
+        "description": "Enter the TankMaster IP or hostname (example: 10.0.0.22).",
+        "data": {
+          "host": "Host"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to TankMaster. Check host/IP and network."
+    }
+  }
+}
