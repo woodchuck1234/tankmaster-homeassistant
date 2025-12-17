@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.const import EntityCategory
 
 from .const import DOMAIN
 from .coordinator import TankMasterCoordinator
 
-# Default thresholds if you don't expose them as config options (yet)
+# Default thresholds (matches your “S1/S2/S3/S4” behavior)
 DEFAULT_THRESHOLDS = [25, 50, 75, 90]
 
 
@@ -20,15 +20,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entities: list[SensorEntity] = [
         TankMasterLevelSensor(coordinator, entry),
         TankMasterFirmwareSensor(coordinator, entry),
-
-        # New diagnostics from coordinator.py merge (/api/device + /api/network)
         TankMasterDeviceNameSensor(coordinator, entry),
-        TankMasterWifiSsidSensor(coordinator, entry),
-        TankMasterWifiRssiSensor(coordinator, entry),
+        TankMasterWifiSSIDSensor(coordinator, entry),
+        TankMasterWifiRSSISensor(coordinator, entry),
         TankMasterUptimeSensor(coordinator, entry),
     ]
 
-    # Create up to 4 probe sensors (you can later make this dynamic via numSensors)
+    # Create up to 4 probe sensors
     for idx in range(4):
         entities.append(TankMasterProbeThresholdSensor(coordinator, entry, idx))
 
@@ -43,11 +41,11 @@ class TankMasterBase(CoordinatorEntity[TankMasterCoordinator]):
 
     @property
     def device_info(self) -> DeviceInfo:
-        data = self.coordinator.data or {}
-        device_name = data.get("deviceName") or f"TankMaster ({self.host})"
+        # NOTE: if you want the Device Name from firmware to show up as the HA device name,
+        # you'll need to move this into a custom device registry update. For now we keep it stable.
         return DeviceInfo(
             identifiers={(DOMAIN, self.host)},
-            name=str(device_name),
+            name=f"TankMaster ({self.host})",
             manufacturer="RiVöt / UGotToad",
             model="TankMaster",
             configuration_url=f"http://{self.host}/",
@@ -80,27 +78,30 @@ class TankMasterProbeThresholdSensor(TankMasterBase, SensorEntity):
         except Exception:
             return None
 
-        return self.threshold if raw >= 50 else 0  # wet -> threshold, dry -> 0
+        return self.threshold if raw >= 50 else 0
 
     @property
     def extra_state_attributes(self) -> dict:
-        values = (self.coordinator.data or {}).get("sensorValues") or [None] * 4
-        raw_val = values[self.idx] if isinstance(values, list) and len(values) > self.idx else None
+        raw_list = (self.coordinator.data or {}).get("sensorValues")
+        raw_value = None
+        if isinstance(raw_list, list) and len(raw_list) > self.idx:
+            raw_value = raw_list[self.idx]
+
         return {
             "threshold_percent": self.threshold,
-            "raw_value": raw_val,
+            "raw_value": raw_value,
         }
 
 
 class TankMasterLevelSensor(TankMasterBase, SensorEntity):
     """Computed tank level = highest threshold whose probe is wet."""
 
+    _attr_name = "TankMaster Level"
     _attr_native_unit_of_measurement = "%"
     _attr_icon = "mdi:water"
 
     def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._attr_name = "TankMaster Level"
         self._attr_unique_id = f"{self.host}_level_percent"
 
     @property
@@ -115,6 +116,7 @@ class TankMasterLevelSensor(TankMasterBase, SensorEntity):
                 raw = int(values[i])
             except Exception:
                 continue
+
             if raw >= 50:  # wet
                 level = max(level, threshold)
 
@@ -131,99 +133,4 @@ class TankMasterLevelSensor(TankMasterBase, SensorEntity):
 class TankMasterFirmwareSensor(TankMasterBase, SensorEntity):
     _attr_name = "TankMaster Firmware"
     _attr_icon = "mdi:chip"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{self.host}_firmware"
-
-    @property
-    def native_value(self) -> str | None:
-        val = (self.coordinator.data or {}).get("firmwareVersion")
-        return str(val) if val is not None else None
-
-
-class TankMasterDeviceNameSensor(TankMasterBase, SensorEntity):
-    _attr_name = "TankMaster Device Name"
-    _attr_icon = "mdi:tag"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{self.host}_device_name"
-
-    @property
-    def native_value(self) -> str | None:
-        val = (self.coordinator.data or {}).get("deviceName")
-        return str(val) if val else None
-
-
-class TankMasterWifiSsidSensor(TankMasterBase, SensorEntity):
-    _attr_name = "TankMaster Wi-Fi SSID"
-    _attr_icon = "mdi:wifi"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{self.host}_wifi_ssid"
-
-    @property
-    def native_value(self) -> str | None:
-        val = (self.coordinator.data or {}).get("wifi_ssid")
-        return str(val) if val else None
-
-
-class TankMasterWifiRssiSensor(TankMasterBase, SensorEntity):
-    _attr_name = "TankMaster Wi-Fi RSSI"
-    _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
-    _attr_native_unit_of_measurement = "dBm"
-    _attr_icon = "mdi:wifi"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{self.host}_wifi_rssi"
-
-    @property
-    def native_value(self) -> int | None:
-        val = (self.coordinator.data or {}).get("wifi_rssi")
-        if val is None:
-            return None
-        try:
-            return int(val)
-        except Exception:
-            return None
-
-
-class TankMasterUptimeSensor(TankMasterBase, SensorEntity):
-    _attr_name = "TankMaster Uptime"
-    _attr_device_class = SensorDeviceClass.DURATION
-    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
-    _attr_icon = "mdi:timer-outline"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{self.host}_uptime_seconds"
-
-    @property
-    def native_value(self) -> int | None:
-        val = (self.coordinator.data or {}).get("uptime_seconds")
-        if val is None:
-            return None
-        try:
-            return int(val)
-        except Exception:
-            return None
-
-class TankMasterBase(CoordinatorEntity[TankMasterCoordinator]):
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator)
-        self.entry = entry
-        self.host = coordinator.host
-
-    @property
-    def available(self) -> bool:
-        # allow a couple missed polls before marking entities unavailable
-        failures = getattr(self.coordinator, "_consecutive_failures", 0)
-        return failures < 3
+    _attr_entity_category =
