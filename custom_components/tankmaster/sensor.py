@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.const import PERCENTAGE
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
@@ -9,11 +10,15 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import TankMasterCoordinator
 
-# Default thresholds if you don't expose them as config options (yet)
+# Default thresholds if not yet configurable
 DEFAULT_THRESHOLDS = [25, 50, 75, 90]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities,
+):
     coordinator: TankMasterCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities: list[SensorEntity] = [
@@ -21,111 +26,90 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         TankMasterFirmwareSensor(coordinator, entry),
     ]
 
-    # Create up to 4 probe sensors (you can later make this dynamic via numSensors)
+    # Create up to 4 probe threshold sensors
     for idx in range(4):
-        entities.append(TankMasterProbeThresholdSensor(coordinator, entry, idx))
+        entities.append(
+            TankMasterProbeThresholdSensor(coordinator, entry, idx)
+        )
 
     async_add_entities(entities)
 
 
-class TankMasterBase(CoordinatorEntity[TankMasterCoordinator]):
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
+class TankMasterBase(
+    CoordinatorEntity[TankMasterCoordinator], SensorEntity
+):
+    def __init__(
+        self,
+        coordinator: TankMasterCoordinator,
+        entry: ConfigEntry,
+    ):
         super().__init__(coordinator)
-        self.entry = entry
-        self.host = coordinator.host
+        self._entry = entry
 
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self.host)},
-            name=f"TankMaster ({self.host})",
-            manufacturer="RiVöt / UGotToad",
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name=self.coordinator.name,
+            manufacturer="RiVöt",
             model="TankMaster",
-            configuration_url=f"http://{self.host}/",
+            sw_version=self.coordinator.data.get("fw"),
         )
 
 
-class TankMasterProbeThresholdSensor(TankMasterBase, SensorEntity):
-    """Shows probe threshold percent when wet; 0 when dry."""
-
-    _attr_native_unit_of_measurement = "%"
+class TankMasterLevelSensor(TankMasterBase):
+    _attr_name = "Tank Level"
+    _attr_native_unit_of_measurement = PERCENTAGE
     _attr_icon = "mdi:water-percent"
 
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry, idx: int) -> None:
-        super().__init__(coordinator, entry)
-        self.idx = idx
-        threshold = DEFAULT_THRESHOLDS[idx] if idx < len(DEFAULT_THRESHOLDS) else (idx + 1) * 25
-        self.threshold = threshold
-
-        self._attr_name = f"TankMaster Probe {idx+1}"
-        self._attr_unique_id = f"{self.host}_probe_{idx+1}_threshold"
+    @property
+    def unique_id(self) -> str:
+        return f"{self._entry.entry_id}_level"
 
     @property
-    def native_value(self) -> int | None:
-        values = (self.coordinator.data or {}).get("sensorValues")
-        if not isinstance(values, list) or len(values) <= self.idx:
-            return None
-
-        try:
-            raw = int(values[self.idx])  # TankMaster returns 0 or 100
-        except Exception:
-            return None
-
-        return self.threshold if raw >= 50 else 0  # wet -> threshold, dry -> 0
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        return {
-            "threshold_percent": self.threshold,
-            "raw_value": (self.coordinator.data or {}).get("sensorValues", [None]*4)[self.idx],
-        }
+    def native_value(self):
+        return self.coordinator.data.get("level")
 
 
-class TankMasterLevelSensor(TankMasterBase, SensorEntity):
-    """Computed tank level = highest threshold whose probe is wet."""
-
-    _attr_name = "TankMaster Level"
-    _attr_unique_id = None  # set in __init__
-    _attr_native_unit_of_measurement = "%"
-    _attr_icon = "mdi:water"
-
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{self.host}_level_percent"
-
-    @property
-    def native_value(self) -> int | None:
-        values = (self.coordinator.data or {}).get("sensorValues")
-        if not isinstance(values, list) or not values:
-            return None
-
-        level = 0
-        for i, threshold in enumerate(DEFAULT_THRESHOLDS[: len(values)]):
-            try:
-                raw = int(values[i])
-            except Exception:
-                continue
-            if raw >= 50:  # wet
-                level = max(level, threshold)
-
-        return level
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        return {
-            "probe_thresholds": DEFAULT_THRESHOLDS,
-            "sensorValues_raw": (self.coordinator.data or {}).get("sensorValues"),
-        }
-
-
-class TankMasterFirmwareSensor(TankMasterBase, SensorEntity):
-    _attr_name = "TankMaster Firmware"
+class TankMasterFirmwareSensor(TankMasterBase):
+    _attr_name = "Firmware Version"
     _attr_icon = "mdi:chip"
-
-    def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{self.host}_firmware"
+    _attr_entity_category = "diagnostic"
 
     @property
-    def native_value(self) -> str | None:
-        return (self.coordinator.data or {}).get("firmwareVersion")
+    def unique_id(self) -> str:
+        return f"{self._entry.entry_id}_firmware"
+
+    @property
+    def native_value(self):
+        return self.coordinator.data.get("fw")
+
+
+class TankMasterProbeThresholdSensor(TankMasterBase):
+    def __init__(
+        self,
+        coordinator: TankMasterCoordinator,
+        entry: ConfigEntry,
+        index: int,
+    ):
+        super().__init__(coordinator, entry)
+        self._index = index
+
+        self._attr_name = f"Probe {index + 1} Threshold"
+        self._attr_icon = "mdi:gauge"
+        self._attr_entity_category = "diagnostic"
+
+    @property
+    def unique_id(self) -> str:
+        return (
+            f"{self._entry.entry_id}_probe_{self._index}_threshold"
+        )
+
+    @property
+    def native_value(self):
+        thresholds = self.coordinator.data.get(
+            "thresholds", DEFAULT_THRESHOLDS
+        )
+        if self._index < len(thresholds):
+            return thresholds[self._index]
+        return None
