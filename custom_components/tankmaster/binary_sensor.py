@@ -30,6 +30,7 @@ class TankMasterProbeDetected(TankMasterBase, BinarySensorEntity):
         self._attr_name = f"TankMaster Probe {idx+1} Liquid Detected"
         self._attr_unique_id = f"{self.host}_probe_{idx+1}_detected"
         self._attr_icon = "mdi:water"
+        self._attr_entity_registry_enabled_default = False
 
     @property
     def is_on(self) -> bool | None:
@@ -46,6 +47,7 @@ class TankMasterProbeDetected(TankMasterBase, BinarySensorEntity):
 class TankMasterWifiConnected(TankMasterBase, BinarySensorEntity):
     _attr_name = "TankMaster Wi-Fi Connected"
     _attr_icon = "mdi:wifi"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
@@ -60,6 +62,7 @@ class TankMasterWifiConnected(TankMasterBase, BinarySensorEntity):
 class TankMasterExternalPower(TankMasterBase, BinarySensorEntity):
     _attr_name = "TankMaster External Power"
     _attr_icon = "mdi:power-plug"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
