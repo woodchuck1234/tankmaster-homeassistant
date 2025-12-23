@@ -35,26 +35,48 @@ class TankMasterCoordinator(DataUpdateCoordinator[dict]):
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
         )
 
-    async def _fetch_json(self, path: str, timeout_s: float = 20.0) -> dict:
+    async def _fetch_json(self, path: str, timeout_s: float = 20.0, retries: int = 0, retry_delay_s: float = 1.0) -> dict:
         """Fetch JSON from TankMaster. Raises UpdateFailed on hard errors."""
         url = f"http://{self.host}{path}"
-        timeout = aiohttp.ClientTimeout(total=timeout_s)
+        last_exc: Exception | None = None
 
-        async with self.session.get(url, timeout=timeout) as resp:
-            if resp.status != 200:
-                raise UpdateFailed(f"{path} HTTP {resp.status}")
+        for attempt in range(retries + 1):
+            try:
+                timeout = aiohttp.ClientTimeout(total=timeout_s)
+                async with self.session.get(url, timeout=timeout) as resp:
+                    if resp.status != 200:
+                        raise UpdateFailed(f"{path} HTTP {resp.status}")
 
-            data = await resp.json()
-            if not isinstance(data, dict):
-                raise UpdateFailed(f"{path} invalid JSON")
+                    data = await resp.json()
+                    if not isinstance(data, dict):
+                        raise UpdateFailed(f"{path} invalid JSON")
 
-            return data
+                    return data
+
+            except (aiohttp.ClientError, asyncio.TimeoutError, UpdateFailed) as e:
+                last_exc = e
+                if attempt < retries:
+                    _LOGGER.debug(
+                        "Error fetching %s%s (attempt %s/%s): %s; retrying in %.1fs",
+                        self.host,
+                        path,
+                        attempt + 1,
+                        retries + 1,
+                        e,
+                        retry_delay_s,
+                    )
+                    await asyncio.sleep(retry_delay_s)
+                else:
+                    raise UpdateFailed(f"{path} error after {retries + 1} attempts: {e}") from e
+
+        # Fallback, should not be reached
+        raise UpdateFailed(f"{path} unknown error: {last_exc}")
 
     async def _async_update_data(self) -> dict:
         """Fetch /api/status plus optional diagnostic endpoints and merge results."""
         try:
             # Required endpoint (drives your main sensors)
-            status = await self._fetch_json("/api/status")
+            status = await self._fetch_json("/api/status", timeout_s=5.0, retries=2, retry_delay_s=0.5)
 
             # Optional endpoints: do not fail the whole integration if these flake out
             async def safe(path: str) -> dict:
