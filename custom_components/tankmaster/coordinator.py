@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from time import monotonic
 import asyncio
 import logging
 from datetime import timedelta
@@ -20,6 +21,12 @@ class TankMasterCoordinator(DataUpdateCoordinator[dict]):
         self.entry = entry
         self.host = entry.data[CONF_HOST]
         self.session = async_get_clientsession(hass)
+
+        self._last_diag = 0.0
+        self._diag_interval = 900.0  # 15 minutes
+        self._last_device: dict = {}
+        self._last_network: dict = {}
+        self._last_system: dict = {}
 
         super().__init__(
             hass,
@@ -57,11 +64,24 @@ class TankMasterCoordinator(DataUpdateCoordinator[dict]):
                     _LOGGER.debug("TankMaster optional fetch failed %s: %s", path, e)
                     return {}
 
-            device, network, system = await asyncio.gather(
-                safe("/api/device"),
-                safe("/api/network"),
-                safe("/api/system"),
-            )
+            # Decide whether to refresh diagnostics (every 15 minutes)
+            now = monotonic()
+            if (now - self._last_diag) >= self._diag_interval:
+                self._last_diag = now
+                # Fetch optional endpoints sequentially to avoid overwhelming ESP32
+                device = await safe("/api/device")
+                await asyncio.sleep(0.2)
+                network = await safe("/api/network")
+                await asyncio.sleep(0.2)
+                system = await safe("/api/system")
+                # Cache successful results (even if some are empty)
+                self._last_device = device
+                self._last_network = network
+                self._last_system = system
+            else:
+                device = self._last_device
+                network = self._last_network
+                system = self._last_system
 
             merged: dict = dict(status)
 

@@ -134,6 +134,7 @@ class TankMasterFirmwareSensor(TankMasterBase, SensorEntity):
     _attr_name = "TankMaster Firmware"
     _attr_icon = "mdi:chip"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
@@ -148,6 +149,7 @@ class TankMasterDeviceNameSensor(TankMasterBase, SensorEntity):
     _attr_name = "TankMaster Device Name"
     _attr_icon = "mdi:tag"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
@@ -162,6 +164,7 @@ class TankMasterWifiSSIDSensor(TankMasterBase, SensorEntity):
     _attr_name = "TankMaster Wi-Fi SSID"
     _attr_icon = "mdi:wifi"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
@@ -177,6 +180,7 @@ class TankMasterWifiRSSISensor(TankMasterBase, SensorEntity):
     _attr_icon = "mdi:wifi-strength-2"
     _attr_native_unit_of_measurement = "dBm"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
@@ -196,6 +200,7 @@ class TankMasterUptimeSensor(TankMasterBase, SensorEntity):
     _attr_icon = "mdi:timer-outline"
     _attr_native_unit_of_measurement = "s"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TankMasterCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
